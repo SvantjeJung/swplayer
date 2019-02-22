@@ -12,7 +12,7 @@ This logfile can be used to prevent that the last *n* logged files are chosen fo
 
 Shutdown can be initiated by reaching end of playlist or timeout.
 
-:version 0.1.0 - 2019-02-20
+:version 0.1.1
 
 """
 
