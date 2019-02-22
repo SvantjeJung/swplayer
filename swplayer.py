@@ -36,6 +36,10 @@ def parse_arguments():
                      nargs='*',
                      default='.',
                      help="Files and folders to use for playback.")
+    app.add_argument('--delete', '-d',
+                     dest='delete',
+                     action='store_true',
+                     help="Delete current playlist history.")
     app.add_argument('--formats',
                      dest='formats',
                      nargs='*',
@@ -108,37 +112,51 @@ def get_random_titles(dirs, num_random_titles, formats, history):
     for n in dirs:
         # get mp3 or flac from dirs
         for p in formats:
-            audio_in_dirs.extend(pathlib.Path(n).glob('*.' + p))
+            audio_in_dirs.extend(pathlib.Path(n).absolute().glob('*.' + p))
 
         logging.debug("AUDIOS (%d): %s", len(audio_in_dirs), audio_in_dirs)
 
-        # try to only use those files which are not in recent playlist history
-        tmp = list(set(audio_in_dirs) - set(history))
-        logging.debug("DIFFERENCE (%d): %s", len(tmp), tmp)
+    # try to only use those files which are not in recent playlist history
+    tmp = list(set(audio_in_dirs) - set(history))
 
-        if len(tmp) > 0:
-            audio_in_dirs = tmp
-        else:
-            logging.debug("All available media was recently played. Randomly choosing from all available media.")
+    logging.debug("DIFFERENCE (%d): %s", len(tmp), tmp)
+
+    if tmp:
+        audio_in_dirs = tmp
+    else:
+        logging.warning("All available media in %s was recently played. Randomly choosing from all available media.", dirs)
+
 
     playlist = list()
-    for i in range(0, num_random_titles):
-        playlist.append(random.choice(audio_in_dirs))
+
+    if audio_in_dirs:
+        # media files found
+        for i in range(0, num_random_titles):
+            playlist.append(random.choice(audio_in_dirs))
+
     return playlist
 
 
 def main():
     # =============================================================================================
     # initialize
-    swplayer = pathlib.Path("home", os.getenv("USER"), ".swplayer")
+
+    args = parse_arguments()
+
+    swplayer = pathlib.Path("/home", os.getenv("USER"), ".swplayer")
     swplayer.mkdir(parents=True, exist_ok=True)
 
     logfile = swplayer.joinpath(pathlib.Path("playlist.log"))
-    logging.basicConfig(filename=logfile, filemode='a', format='%(levelname)s:%(asctime)s => %(message)s',
-                        level=logging.INFO)
 
-    # =============================================================================================
-    args = parse_arguments()
+    print(logfile)
+
+    if args.delete:
+        filemode = 'w'
+    else:
+        filemode = 'a'
+
+    logging.basicConfig(filename=logfile, filemode=filemode, format='%(levelname)s:%(asctime)s => %(message)s',
+                        level=logging.INFO)
 
     if args.verbose:
         logger = logging.getLogger()
@@ -178,6 +196,11 @@ def main():
     if num_random_titles > 0:
         playlist = get_random_titles(dirs, num_random_titles, args.formats, history)
 
+    if not playlist and not args.rain:
+        print("\nNo media for playback found in", dirs, "\nAborting.\n")
+        logging.debug("No media for playback in : %s", dirs)
+        return
+
     logging.debug("PLAYLIST (%d): %s", len(playlist), playlist)
 
     # play files
@@ -185,7 +208,7 @@ def main():
     for p in playlist:
         start = datetime.datetime.now()
         try:
-            logging.info("PLAYED %s", p)
+            logging.info("PLAYED %s", pathlib.Path(p).absolute())
             subprocess.run([args.player, p], timeout=time_to_play)
         except subprocess.TimeoutExpired:
             logging.info("*** Aborted playing due to timeout.")
