@@ -130,10 +130,10 @@ def get_random_titles(dirs, num_random_titles, formats, history):
 def main():
     # =============================================================================================
     # initialize
-    swplayer = "/home/" + os.getenv("USER") + "/.swplayer/"
-    pathlib.Path(swplayer).mkdir(parents=True, exist_ok=True)
+    swplayer = pathlib.Path("home", os.getenv("USER"), ".swplayer")
+    swplayer.mkdir(parents=True, exist_ok=True)
 
-    logfile = swplayer + "playlist.log"
+    logfile = swplayer.joinpath(pathlib.Path("playlist.log"))
     logging.basicConfig(filename=logfile, filemode='a', format='%(levelname)s:%(asctime)s => %(message)s',
                         level=logging.INFO)
 
@@ -198,11 +198,6 @@ def main():
 
     # =============================================================================================
     # shutdown
-    if args.verbose:
-        # debugging mode, no real shutdown
-        print(">>> DEBUG mode: NO shutdown of computer")
-        return
-
     os.system("shutdown -now")
 
 
